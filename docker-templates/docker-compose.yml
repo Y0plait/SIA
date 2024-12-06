@@ -1,0 +1,151 @@
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    volumes:
+      - prowlarr:/config
+    environment:
+      - PUID=${PUID}
+      - GUID=${GUID}
+      - TZ=${TZ}
+    restart: unless-stopped
+    networks:
+      - proxy
+    expose:
+      - 9696
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${TLD}`)"
+      - "traefik.http.routers.prowlarr.service=prowlarr-serv"
+      - "traefik.http.services.prowlarr-serv.loadbalancer.server.port=9696"
+      # TLS
+      - "traefik.http.routers.prowlarr.entrypoints=${ENTRYPOINTS}"
+      - "traefik.http.routers.prowlarr.tls=${ENTRYPOINTS}"
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    volumes: 
+      - sonarr:/config
+      - ${NAS_PATH}/media/tv:/tv
+      - ${NAS_PATH}/torrents:/downloads
+    environment:
+      - PUID=${PUID}
+      - GUID=${GUID}
+      - TZ=${TZ}
+    restart: unless-stopped
+    networks:
+      - proxy
+    expose:
+      - 8989
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${TLD}`)"
+      - "traefik.http.routers.sonarr.service=sonarr-serv"
+      - "traefik.http.services.sonarr-serv.loadbalancer.server.port=9696"
+      # TLS
+      - "traefik.http.routers.sonarr.entrypoints=${ENTRYPOINTS}"
+      - "traefik.http.routers.sonarr.tls=${ENTRYPOINTS}"
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    volumes: 
+      - radarr:/config
+      - ${NAS_PATH}/media/movies:/movies
+      - ${NAS_PATH}/torrents:/downloads
+    environment:
+      - PUID=${PUID}
+      - GUID=${GUID}
+      - TZ=${TZ}
+    restart: unless-stopped
+    networks:
+      - proxy
+    expose:
+      - 7878
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${TLD}`)"
+      - "traefik.http.routers.radarr.service=radarr-serv"
+      - "traefik.http.services.radarr-serv.loadbalancer.server.port=7878"
+      # TLS
+      - "traefik.http.routers.radarr.entrypoints=${ENTRYPOINTS}"
+      - "traefik.http.routers.radarr.tls=${ENTRYPOINTS}"
+
+  bazarr:
+    image:
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    volumes: 
+      - jellyseerr:/app/config
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ}
+    expose:
+      - 5055
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${TLD}`)"
+      - "traefik.http.routers.jellyseerr.service=jellyseerr-serv"
+      - "traefik.http.services.jellyseerr-serv.loadbalancer.server.port=5055"
+      # TLS
+      - "traefik.http.routers.jellyseerr.entrypoints=${ENTRYPOINTS}"
+      - "traefik.http.routers.jellyseerr.tls=${ENTRYPOINTS}"
+
+  qbittorrent:
+    image: ghcr.io/linuxserver/qbittorrent:latest
+    environment:
+      - PUID=${PUID}
+      - GUID=${GUID}
+      - TZ=${TZ}
+      - WEBUI_PORT=${QBIT_WEBUI_PORT}
+    volumes:
+      - qbittorrent:/config
+      - ${NAS_PATH}/torrents:/downloads
+    network_mode: "container:gluetun"
+    restart: unless-stopped
+
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 6081:6881
+      - 6081:6881/udp
+      - ${QBIT_WEBUI_PORT}:${QBIT_WEBUI_PORT}
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_PROVIDER}
+      - OPENVPN_USER=${VPN_USER}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD}
+      - SERVER_REGIONS=${VPN_REGION}
+    volumes:
+      - gluetun:/gluetun
+    restart: unless-stopped
+    networks:
+      - vpn
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gluetun.rule=Host(`qbittorrent.${TLD}`)"
+      - "traefik.http.routers.gluetun.service=qbittorrent-serv"
+      - "traefik.http.services.qbittorrent-serv.loadbalancer.server.port=6011"
+      # TLS
+      - "traefik.http.routers.jellyseerr.entrypoints=${ENTRYPOINTS}"
+      - "traefik.http.routers.jellyseerr.tls=${ENTRYPOINTS}"
+
+  # jellyfin:
+  #   image:
+
+volumes:
+ prowlarr:
+ radarr:
+ sonarr:
+ qbittorrent:
+ gluetun:
+ jellyseerr:
+
+
+networks:
+  vpn:
+  proxy:
